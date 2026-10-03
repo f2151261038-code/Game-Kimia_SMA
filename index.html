@@ -1,0 +1,2012 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Ular Tangga Unsur Kimia - Battle Arena</title>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+* {
+    margin: 0; padding: 0; box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
+    font-family: 'Poppins', sans-serif;
+    user-select: none;
+}
+body {
+    background: radial-gradient(circle at 50% 0%, #1a0033, #0a0015);
+    min-height: 100vh;
+    display: flex; justify-content: center; align-items: center;
+    overflow: hidden; color: #fff;
+}
+#app {
+    width: 100%; max-width: 420px; height: 100vh; max-height: 850px;
+    position: relative;
+    background: linear-gradient(180deg, #0d2818 0%, #071a10 100%);
+    border-radius: 20px; overflow: hidden;
+    box-shadow: 0 0 60px rgba(0,255,128,0.2), 0 20px 60px rgba(0,0,0,0.8);
+    display: flex; flex-direction: column;
+}
+
+/* ============ AUDIO CONTROLS ============ */
+#audio-controls {
+    position: absolute; top: 8px; right: 8px;
+    z-index: 300; display: flex; gap: 6px;
+}
+.audio-btn {
+    width: 34px; height: 34px; border-radius: 50%;
+    background: rgba(0,0,0,0.6);
+    border: 1px solid rgba(0,255,128,0.4);
+    color: #00ff80; font-size: 15px;
+    cursor: pointer; display: flex;
+    align-items: center; justify-content: center;
+    backdrop-filter: blur(10px);
+    transition: all 0.2s ease;
+}
+.audio-btn:active { transform: scale(0.9); }
+.audio-btn.muted { color: #666; border-color: #444; }
+
+/* ============ SCOREBOARD ============ */
+#scoreboard {
+    position: relative; z-index: 10;
+    padding: 8px 10px;
+    background: rgba(0,0,0,0.5);
+    backdrop-filter: blur(10px);
+    border-bottom: 1px solid rgba(0,255,128,0.2);
+    display: flex; gap: 6px; justify-content: center;
+}
+.player-card {
+    flex: 1; padding: 6px 8px; border-radius: 10px;
+    background: rgba(255,255,255,0.05);
+    border: 2px solid transparent;
+    transition: all 0.3s ease;
+    min-width: 0; position: relative;
+}
+.player-card.active {
+    border-color: var(--pcolor);
+    box-shadow: 0 0 15px var(--pcolor), inset 0 0 15px rgba(0,255,128,0.1);
+    animation: pulseGlow 1.5s ease-in-out infinite;
+}
+@keyframes pulseGlow {
+    0%, 100% { box-shadow: 0 0 12px var(--pcolor); }
+    50% { box-shadow: 0 0 22px var(--pcolor), 0 0 35px var(--pcolor); }
+}
+.player-card.dead { opacity: 0.35; filter: grayscale(0.8); }
+.pc-top {
+    display: flex; align-items: center; gap: 4px;
+    font-size: 10px; font-weight: 700;
+    white-space: nowrap; overflow: hidden;
+}
+.pc-dot {
+    width: 12px; height: 12px; border-radius: 50%;
+    background: var(--pcolor);
+    box-shadow: 0 0 6px var(--pcolor);
+    flex-shrink: 0;
+}
+.pc-name { overflow: hidden; text-overflow: ellipsis; }
+.pc-stats {
+    display: flex; justify-content: space-between;
+    font-size: 9px; margin-top: 2px;
+    color: rgba(255,255,255,0.7);
+}
+.pc-stats .lives { letter-spacing: -2px; }
+.pc-combo {
+    position: absolute; top: -4px; right: -4px;
+    font-size: 12px;
+    animation: firePulse 0.5s ease infinite alternate;
+}
+@keyframes firePulse { from { transform: scale(1); } to { transform: scale(1.2); } }
+
+/* ============ BOARD ============ */
+#board-wrapper {
+    flex: 1; position: relative; z-index: 5;
+    padding: 6px; display: flex;
+    align-items: center; justify-content: center;
+    overflow: hidden;
+}
+#board {
+    display: grid;
+    grid-template-columns: repeat(10, 1fr);
+    grid-template-rows: repeat(10, 1fr);
+    gap: 1.5px;
+    width: 100%; aspect-ratio: 1/1;
+    max-height: 100%; position: relative;
+}
+.cell {
+    position: relative; border-radius: 3px;
+    display: flex; align-items: flex-start; justify-content: flex-start;
+    font-size: 6px; font-weight: 700;
+    color: rgba(255,255,255,0.5);
+    padding: 1px 2px; overflow: hidden;
+    transition: transform 0.15s ease;
+}
+.cell.r0 { background: linear-gradient(135deg, #1a4d2e, #0d2818); }
+.cell.r1 { background: linear-gradient(135deg, #2d5a1e, #1a3a10); }
+.cell.r2 { background: linear-gradient(135deg, #1e4d4d, #0d2828); }
+.cell.r3 { background: linear-gradient(135deg, #3a3a1e, #1e1e0d); }
+.cell.r4 { background: linear-gradient(135deg, #2d1e4d, #150d28); }
+.cell.start { background: linear-gradient(135deg, #00ff80, #00aa55) !important; color: #000 !important; }
+.cell.finish { background: linear-gradient(135deg, #ffd700, #ff8800) !important; color: #000 !important; }
+.cell.highlight {
+    transform: scale(1.15); z-index: 5;
+    box-shadow: 0 0 10px #00ff80;
+}
+.cell .emoji {
+    position: absolute; bottom: 0; right: 0;
+    font-size: 10px; filter: drop-shadow(0 0 3px rgba(0,0,0,0.8));
+}
+.cell .ladder-emoji { animation: ladderPulse 2s ease-in-out infinite; }
+.cell .snake-emoji { animation: snakeWiggle 1.5s ease-in-out infinite; }
+@keyframes ladderPulse {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(1.2); }
+}
+@keyframes snakeWiggle {
+    0%, 100% { transform: rotate(-10deg); }
+    50% { transform: rotate(10deg); }
+}
+
+/* Player tokens di papan */
+.token {
+    position: absolute; border-radius: 50%;
+    border: 2px solid #fff;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 8px; font-weight: 800; color: #fff;
+    z-index: 20; pointer-events: none;
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    text-shadow: 0 0 4px #000;
+    box-shadow: 0 0 10px currentColor;
+}
+.token.jumping { animation: tokenJump 0.4s ease; }
+@keyframes tokenJump {
+    0%, 100% { transform: translateY(0) scale(1); }
+    50% { transform: translateY(-12px) scale(1.2); }
+}
+
+/* ============ BOTTOM PANEL ============ */
+#bottom-panel {
+    position: relative; z-index: 10;
+    padding: 8px 12px 12px;
+    background: rgba(0,0,0,0.5);
+    backdrop-filter: blur(10px);
+    border-top: 1px solid rgba(0,255,128,0.2);
+    display: flex; flex-direction: column; gap: 6px;
+}
+#turn-indicator {
+    text-align: center; font-size: 12px; font-weight: 700;
+    padding: 4px; border-radius: 8px;
+    background: rgba(0,255,128,0.1);
+    border: 1px solid rgba(0,255,128,0.3);
+    transition: all 0.3s ease;
+}
+#turn-indicator .dot {
+    display: inline-block; width: 10px; height: 10px;
+    border-radius: 50%; margin-right: 4px;
+    vertical-align: middle;
+}
+#action-row { display: flex; gap: 8px; align-items: center; }
+#dice-display {
+    width: 48px; height: 48px; border-radius: 10px;
+    background: linear-gradient(135deg, #fff, #ddd);
+    color: #0d2818;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 26px; font-weight: 800;
+    box-shadow: 0 0 15px rgba(0,255,128,0.4);
+    flex-shrink: 0;
+}
+#dice-display.rolling { animation: diceRoll 0.6s ease; }
+@keyframes diceRoll {
+    0% { transform: rotateX(0) rotateY(0); }
+    100% { transform: rotateX(720deg) rotateY(360deg); }
+}
+#roll-btn {
+    flex: 1; padding: 13px; border: none; border-radius: 12px;
+    background: linear-gradient(135deg, #00ff80, #00aa55);
+    color: #001a0d; font-size: 14px; font-weight: 800;
+    cursor: pointer; box-shadow: 0 4px 20px rgba(0,255,128,0.4);
+    transition: all 0.2s ease; letter-spacing: 0.5px;
+    font-family: inherit; position: relative; overflow: hidden;
+}
+#roll-btn:active { transform: scale(0.96); }
+#roll-btn:disabled { opacity: 0.4; cursor: not-allowed; box-shadow: none; }
+.ripple {
+    position: absolute; border-radius: 50%;
+    background: rgba(255,255,255,0.6);
+    transform: scale(0); animation: rippleAnim 0.6s ease-out;
+    pointer-events: none;
+}
+@keyframes rippleAnim { to { transform: scale(4); opacity: 0; } }
+
+/* ============ QUIZ MODAL ============ */
+#quiz-modal {
+    position: absolute; inset: 0;
+    background: rgba(0,0,0,0.85);
+    backdrop-filter: blur(8px);
+    z-index: 100; display: flex; align-items: flex-end;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.3s ease;
+}
+#quiz-modal.active { opacity: 1; pointer-events: auto; }
+#quiz-content {
+    width: 100%;
+    background: linear-gradient(180deg, #0d2818, #071a10);
+    border-top: 2px solid #00ff80;
+    border-radius: 20px 20px 0 0;
+    padding: 16px; transform: translateY(100%);
+    transition: transform 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    max-height: 88vh; overflow-y: auto;
+}
+#quiz-modal.active #quiz-content { transform: translateY(0); }
+.quiz-header {
+    display: flex; justify-content: space-between;
+    align-items: center; margin-bottom: 10px;
+}
+.quiz-who {
+    font-size: 11px; font-weight: 700;
+    padding: 3px 10px; border-radius: 10px;
+}
+.timer-circle {
+    position: relative; width: 40px; height: 40px;
+}
+.timer-circle svg { transform: rotate(-90deg); }
+.timer-circle .timer-text {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 800; color: #00ff80;
+}
+#question-text {
+    font-size: 13px; font-weight: 600; color: #fff;
+    line-height: 1.5; margin-bottom: 12px;
+    padding: 10px 12px;
+    background: rgba(0,255,128,0.08);
+    border-left: 3px solid #00ff80;
+    border-radius: 8px;
+}
+.option {
+    width: 100%; padding: 11px 12px; margin-bottom: 6px;
+    border: 2px solid rgba(0,255,128,0.2);
+    border-radius: 10px;
+    background: rgba(255,255,255,0.03);
+    color: #fff; font-size: 12px; font-weight: 500;
+    text-align: left; cursor: pointer;
+    transition: all 0.2s ease;
+    display: flex; align-items: center; gap: 8px;
+    font-family: inherit;
+}
+.option:active { transform: scale(0.98); }
+.option .letter {
+    width: 22px; height: 22px; border-radius: 50%;
+    background: rgba(0,255,128,0.15);
+    color: #00ff80;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; font-weight: 800; flex-shrink: 0;
+}
+.option.correct { border-color: #00ff80; background: rgba(0,255,128,0.2); }
+.option.correct .letter { background: #00ff80; color: #001a0d; }
+.option.wrong { border-color: #ff3b5c; background: rgba(255,59,92,0.15); }
+.option.wrong .letter { background: #ff3b5c; color: #fff; }
+.option.disabled { pointer-events: none; opacity: 0.7; }
+#feedback-box {
+    margin-top: 8px; padding: 10px 12px;
+    border-radius: 10px; font-size: 11px;
+    font-weight: 600; line-height: 1.4;
+    display: none;
+}
+#feedback-box.correct {
+    display: block; background: rgba(0,255,128,0.15);
+    border: 1px solid #00ff80; color: #00ff80;
+}
+#feedback-box.wrong {
+    display: block; background: rgba(255,59,92,0.15);
+    border: 1px solid #ff3b5c; color: #ff8da1;
+}
+
+/* ============ SPLASH SCREEN ============ */
+#splash {
+    position: absolute; inset: 0;
+    background: radial-gradient(circle at 50% 30%, #0d3d22, #001a0d);
+    z-index: 200; display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 20px; text-align: center;
+    transition: opacity 0.5s ease; overflow-y: auto;
+}
+#splash.hidden { opacity: 0; pointer-events: none; }
+.atom-logo {
+    font-size: 60px; margin-bottom: 8px;
+    animation: spin 8s linear infinite;
+    filter: drop-shadow(0 0 20px #00ff80);
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+#splash h1 {
+    font-size: 22px; font-weight: 800;
+    background: linear-gradient(135deg, #00ff80, #00ccff);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: 4px; letter-spacing: 1px;
+}
+#splash .subtitle {
+    font-size: 11px; color: rgba(255,255,255,0.6);
+    margin-bottom: 15px; letter-spacing: 3px;
+}
+.player-count-select {
+    display: flex; gap: 10px; margin-bottom: 15px;
+}
+.count-btn {
+    padding: 10px 22px; border-radius: 12px;
+    border: 2px solid rgba(0,255,128,0.3);
+    background: rgba(0,255,128,0.05);
+    color: #fff; font-size: 13px;
+    font-weight: 700; cursor: pointer;
+    font-family: inherit;
+    transition: all 0.2s ease;
+}
+.count-btn.selected {
+    background: linear-gradient(135deg, #00ff80, #00aa55);
+    color: #001a0d;
+    border-color: #00ff80;
+    box-shadow: 0 0 20px rgba(0,255,128,0.5);
+}
+.player-setup {
+    width: 100%; max-width: 320px;
+    display: flex; flex-direction: column; gap: 6px;
+    margin-bottom: 15px;
+}
+.setup-row {
+    display: flex; align-items: center; gap: 8px;
+    background: rgba(255,255,255,0.04);
+    padding: 6px 8px; border-radius: 10px;
+    border: 1px solid rgba(0,255,128,0.15);
+}
+.setup-dot {
+    width: 18px; height: 18px; border-radius: 50%;
+    box-shadow: 0 0 8px currentColor;
+    flex-shrink: 0;
+    cursor: pointer;
+    transition: transform 0.2s;
+}
+.setup-dot:active { transform: scale(1.2); }
+.setup-input {
+    flex: 1; padding: 6px 8px;
+    background: transparent; border: none;
+    color: #fff; font-size: 12px;
+    font-family: inherit; outline: none;
+    border-bottom: 1px solid rgba(0,255,128,0.3);
+    min-width: 0;
+}
+.setup-input::placeholder { color: rgba(255,255,255,0.3); }
+.color-picker {
+    display: flex; gap: 3px;
+}
+.color-opt {
+    width: 16px; height: 16px; border-radius: 50%;
+    cursor: pointer; border: 2px solid transparent;
+    transition: transform 0.2s;
+}
+.color-opt.selected {
+    border-color: #fff;
+    transform: scale(1.2);
+}
+#start-btn {
+    padding: 14px 40px; border: none; border-radius: 30px;
+    background: linear-gradient(135deg, #00ff80, #00aa55);
+    color: #001a0d; font-size: 14px; font-weight: 800;
+    cursor: pointer; box-shadow: 0 0 25px rgba(0,255,128,0.5);
+    font-family: inherit; letter-spacing: 1px;
+    position: relative; overflow: hidden;
+}
+#start-btn:active { transform: scale(0.95); }
+
+/* ============ RESULT SCREEN ============ */
+#result {
+    position: absolute; inset: 0;
+    background: radial-gradient(circle at 50% 30%, #0d3d22, #001a0d);
+    z-index: 200; display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    padding: 20px; text-align: center;
+    opacity: 0; pointer-events: none;
+    transition: opacity 0.5s ease; overflow-y: auto;
+}
+#result.active { opacity: 1; pointer-events: auto; }
+#result .big-emoji {
+    font-size: 60px; margin-bottom: 6px;
+    animation: badgePop 0.6s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+@keyframes badgePop {
+    0% { transform: scale(0) rotate(-180deg); }
+    100% { transform: scale(1) rotate(0deg); }
+}
+#result h2 {
+    font-size: 22px; font-weight: 800;
+    margin-bottom: 4px;
+    background: linear-gradient(135deg, #00ff80, #00ccff);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+}
+.podium {
+    display: flex; align-items: flex-end;
+    justify-content: center; gap: 8px;
+    margin: 18px 0; width: 100%;
+    max-width: 320px;
+}
+.podium-item {
+    display: flex; flex-direction: column;
+    align-items: center; gap: 4px;
+    flex: 1;
+}
+.podium-bar {
+    width: 100%; border-radius: 8px 8px 0 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 20px; font-weight: 800;
+    transition: height 0.6s ease;
+    box-shadow: 0 -4px 15px rgba(0,255,128,0.3);
+}
+.podium-item.gold .podium-bar { height: 80px; background: linear-gradient(180deg, #ffd700, #b8860b); }
+.podium-item.silver .podium-bar { height: 60px; background: linear-gradient(180deg, #c0c0c0, #808080); }
+.podium-item.bronze .podium-bar { height: 45px; background: linear-gradient(180deg, #cd7f32, #8b4513); }
+.podium-name {
+    font-size: 10px; font-weight: 700;
+    color: #fff; max-width: 80px;
+    overflow: hidden; text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.podium-score {
+    font-size: 9px; color: rgba(255,255,255,0.6);
+}
+#new-badge {
+    display: none; margin: 10px 0;
+    padding: 8px 16px;
+    background: linear-gradient(135deg, rgba(255,215,0,0.2), rgba(255,136,0,0.2));
+    border: 2px solid #ffd700;
+    border-radius: 25px;
+    font-size: 12px; font-weight: 700;
+    color: #ffd700;
+    animation: badgePop 0.6s ease;
+}
+#new-badge.show { display: block; }
+.result-buttons {
+    display: flex; gap: 10px; margin-top: 15px;
+}
+.result-buttons button {
+    padding: 12px 22px; border: none; border-radius: 25px;
+    font-size: 13px; font-weight: 800;
+    cursor: pointer; font-family: inherit;
+}
+#play-again-btn {
+    background: linear-gradient(135deg, #00ff80, #00aa55);
+    color: #001a0d;
+    box-shadow: 0 0 20px rgba(0,255,128,0.5);
+}
+#change-players-btn {
+    background: rgba(255,255,255,0.1);
+    color: #fff;
+    border: 1px solid rgba(255,255,255,0.3) !important;
+}
+
+/* ============ TOAST ============ */
+#toast {
+    position: absolute; top: 35%; left: 50%;
+    transform: translate(-50%, -50%) scale(0.8);
+    background: rgba(0,0,0,0.9);
+    border: 2px solid #00ff80;
+    color: #fff; padding: 10px 18px;
+    border-radius: 12px; font-size: 12px;
+    font-weight: 700; z-index: 150;
+    opacity: 0; pointer-events: none;
+    transition: all 0.3s ease; text-align: center;
+    backdrop-filter: blur(10px); max-width: 80%;
+}
+#toast.show {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+}
+
+/* ============ SPEECH BUBBLE ============ */
+.speech-bubble {
+    position: absolute;
+    background: #fff; color: #000;
+    padding: 4px 8px; border-radius: 12px;
+    font-size: 10px; font-weight: 700;
+    z-index: 30; pointer-events: none;
+    animation: bubbleFloat 1.5s ease-out forwards;
+    white-space: nowrap;
+}
+.speech-bubble::after {
+    content: ''; position: absolute;
+    bottom: -5px; left: 50%;
+    transform: translateX(-50%);
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-top: 5px solid #fff;
+}
+@keyframes bubbleFloat {
+    0% { opacity: 0; transform: translateY(0) scale(0.5); }
+    20% { opacity: 1; transform: translateY(-15px) scale(1); }
+    100% { opacity: 0; transform: translateY(-40px) scale(0.9); }
+}
+
+/* ============ CONFETTI ============ */
+.confetti {
+    position: fixed; top: -20px;
+    font-size: 20px; z-index: 999;
+    pointer-events: none;
+    animation: confettiFall 2s ease-out forwards;
+}
+@keyframes confettiFall {
+    to {
+        transform: translateY(100vh) rotate(720deg);
+        opacity: 0;
+    }
+}
+
+/* ============ SHAKE ============ */
+.shake { animation: shake 0.5s ease; }
+@keyframes shake {
+    0%, 100% { transform: translateX(0); }
+    20% { transform: translateX(-8px); }
+    40% { transform: translateX(8px); }
+    60% { transform: translateX(-6px); }
+    80% { transform: translateX(6px); }
+}
+
+/* ============ SETTINGS PANEL ============ */
+#settings-panel {
+    position: absolute; top: 50px; right: 8px;
+    z-index: 250;
+    background: rgba(0,0,0,0.9);
+    border: 1px solid rgba(0,255,128,0.4);
+    border-radius: 12px;
+    padding: 12px; width: 180px;
+    display: none;
+    backdrop-filter: blur(15px);
+    box-shadow: 0 0 20px rgba(0,255,128,0.3);
+}
+#settings-panel.show { display: block; animation: slideIn 0.3s ease; }
+@keyframes slideIn {
+    from { opacity: 0; transform: translateX(20px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+.settings-title {
+    font-size: 11px; font-weight: 700;
+    color: #00ff80; margin-bottom: 8px;
+    text-align: center;
+}
+.settings-row {
+    display: flex; align-items: center;
+    justify-content: space-between;
+    font-size: 11px; margin-bottom: 8px;
+}
+.settings-row label { color: rgba(255,255,255,0.8); }
+.toggle-switch {
+    width: 36px; height: 20px;
+    border-radius: 10px;
+    background: rgba(255,255,255,0.2);
+    position: relative; cursor: pointer;
+    transition: background 0.3s;
+}
+.toggle-switch.on { background: #00ff80; }
+.toggle-switch::after {
+    content: ''; position: absolute;
+    top: 2px; left: 2px;
+    width: 16px; height: 16px;
+    border-radius: 50%; background: #fff;
+    transition: transform 0.3s;
+}
+.toggle-switch.on::after { transform: translateX(16px); }
+input[type="range"] {
+    width: 80px; height: 4px;
+    -webkit-appearance: none;
+    background: rgba(0,255,128,0.2);
+    border-radius: 2px;
+    outline: none;
+}
+input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 14px; height: 14px;
+    border-radius: 50%; background: #00ff80;
+    cursor: pointer;
+    box-shadow: 0 0 8px #00ff80;
+}
+
+/* Scrollbar */
+#quiz-content::-webkit-scrollbar,
+#splash::-webkit-scrollbar,
+#result::-webkit-scrollbar { width: 4px; }
+#quiz-content::-webkit-scrollbar-thumb,
+#splash::-webkit-scrollbar-thumb,
+#result::-webkit-scrollbar-thumb {
+    background: #00ff80; border-radius: 2px;
+}
+
+/* Equalizer animation */
+.equalizer {
+    display: inline-flex; gap: 2px;
+    align-items: flex-end;
+    height: 14px; margin-left: 4px;
+}
+.equalizer span {
+    width: 2px; background: #00ff80;
+    border-radius: 1px;
+    animation: eq 0.8s ease-in-out infinite;
+}
+.equalizer span:nth-child(1) { animation-delay: 0s; }
+.equalizer span:nth-child(2) { animation-delay: 0.2s; }
+.equalizer span:nth-child(3) { animation-delay: 0.4s; }
+@keyframes eq {
+    0%, 100% { height: 4px; }
+    50% { height: 14px; }
+}
+</style>
+</head>
+<body>
+<div id="app">
+    <!-- AUDIO CONTROLS -->
+    <div id="audio-controls">
+        <button class="audio-btn" id="music-btn" title="Musik">🎵</button>
+        <button class="audio-btn" id="sfx-btn" title="Efek Suara">🔊</button>
+        <button class="audio-btn" id="settings-btn" title="Pengaturan">⚙️</button>
+    </div>
+
+    <!-- SETTINGS PANEL -->
+    <div id="settings-panel">
+        <div class="settings-title">⚙️ Pengaturan Audio</div>
+        <div class="settings-row">
+            <label>🎵 Musik</label>
+            <div class="toggle-switch on" id="toggle-music"></div>
+        </div>
+        <div class="settings-row">
+            <label>🔊 Efek Suara</label>
+            <div class="toggle-switch on" id="toggle-sfx"></div>
+        </div>
+        <div class="settings-row">
+            <label>Volume</label>
+            <input type="range" id="volume-slider" min="0" max="100" value="70">
+        </div>
+    </div>
+
+    <!-- SCOREBOARD -->
+    <div id="scoreboard"></div>
+
+    <!-- BOARD -->
+    <div id="board-wrapper">
+        <div id="board"></div>
+    </div>
+
+    <!-- BOTTOM PANEL -->
+    <div id="bottom-panel">
+        <div id="turn-indicator"></div>
+        <div id="action-row">
+            <div id="dice-display">🎲</div>
+            <button id="roll-btn">🎲 LEMPAR DADU</button>
+        </div>
+    </div>
+
+    <!-- QUIZ MODAL -->
+    <div id="quiz-modal">
+        <div id="quiz-content">
+            <div class="quiz-header">
+                <span class="quiz-who" id="quiz-who">PEMAIN</span>
+                <div class="timer-circle">
+                    <svg width="40" height="40">
+                        <circle cx="20" cy="20" r="16" fill="none"
+                                stroke="rgba(0,255,128,0.2)" stroke-width="3"/>
+                        <circle cx="20" cy="20" r="16" fill="none"
+                                stroke="#00ff80" stroke-width="3"
+                                stroke-dasharray="100.5"
+                                stroke-dashoffset="0"
+                                id="timer-progress"
+                                stroke-linecap="round"/>
+                    </svg>
+                    <div class="timer-text" id="timer-text">30</div>
+                </div>
+            </div>
+            <div id="question-text"></div>
+            <div id="options"></div>
+            <div id="feedback-box"></div>
+        </div>
+    </div>
+
+    <!-- SPLASH SCREEN -->
+    <div id="splash">
+        <div class="atom-logo">⚛️</div>
+        <h1>ULAR TANGGA</h1>
+        <div class="subtitle">UNSUR KIMIA</div>
+
+        <div class="player-count-select">
+            <button class="count-btn selected" data-count="2">👥 2 PEMAIN</button>
+            <button class="count-btn" data-count="3">👥 3 PEMAIN</button>
+        </div>
+
+        <div class="player-setup" id="player-setup"></div>
+
+        <button id="start-btn">🚀 MULAI BERMAIN</button>
+    </div>
+
+    <!-- RESULT SCREEN -->
+    <div id="result">
+        <div class="big-emoji" id="result-emoji">🏆</div>
+        <h2 id="result-title">SELAMAT!</h2>
+        <p style="font-size:11px; color:rgba(255,255,255,0.7); margin-bottom:5px;" id="result-sub">
+            Pemenang telah ditentukan!
+        </p>
+        <div id="new-badge"></div>
+        <div class="podium" id="podium"></div>
+        <div class="result-buttons">
+            <button id="play-again-btn">🔄 MAIN LAGI</button>
+            <button id="change-players-btn">👥 GANTI PEMAIN</button>
+        </div>
+    </div>
+
+    <!-- TOAST -->
+    <div id="toast"></div>
+</div>
+
+<script>
+/* ═══════════════════════════════════════════════════════════════
+   🎯 ULAR TANGGA UNSUR KIMIA - BATTLE ARENA
+   Game edukasi kimia multiplayer 2-3 pemain dengan Web Audio API
+   ═══════════════════════════════════════════════════════════════ */
+
+/* ═══════════════════════════════════════════════════════════
+   🎵 SISTEM AUDIO - Web Audio API (Procedural, tanpa file MP3)
+   ═══════════════════════════════════════════════════════════ */
+let audioCtx = null;
+let musicEnabled = true;
+let sfxEnabled = true;
+let masterVolume = 0.7;
+let bgmScheduler = null;
+let bgmNodes = [];
+let bgmPlaying = false;
+let currentBgmTrack = null;
+
+// Inisialisasi AudioContext setelah user interaction
+function initAudio() {
+    if (audioCtx) return;
+    try {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        console.log('✅ AudioContext initialized');
+    } catch(e) {
+        console.warn('❌ Audio not supported:', e);
+    }
+}
+
+// Fungsi dasar: memainkan 1 nada
+function playTone(freq, duration, type = 'sine', volume = 0.3, startTime = null, dest = null) {
+    if (!sfxEnabled || !audioCtx) return;
+    const t = startTime || audioCtx.currentTime;
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = type;
+    osc.frequency.value = freq;
+    gain.gain.setValueAtTime(0, t);
+    gain.gain.linearRampToValueAtTime(volume * masterVolume, t + 0.01);
+    gain.gain.exponentialRampToValueAtTime(0.001, t + duration);
+    osc.connect(gain);
+    gain.connect(dest || audioCtx.destination);
+    osc.start(t);
+    osc.stop(t + duration);
+}
+
+// Memainkan urutan nada (melodi)
+function playNotes(notes, type = 'sine', volume = 0.3, spacing = 0.1, duration = 0.15) {
+    if (!sfxEnabled || !audioCtx) return;
+    const now = audioCtx.currentTime;
+    notes.forEach((freq, i) => {
+        playTone(freq, duration, type, volume, now + i * spacing);
+    });
+}
+
+// ═══════════════════════════════════════
+// PRESET EFEK SUARA (SFX)
+// ═══════════════════════════════════════
+const SFX = {
+    // Suara dadu: tick-tick-tick saat animasi
+    dice() {
+        if (!sfxEnabled || !audioCtx) return;
+        const now = audioCtx.currentTime;
+        for (let i = 0; i < 8; i++) {
+            playTone(200 + Math.random() * 300, 0.04, 'square', 0.1, now + i * 0.08);
+        }
+        // Sound "thud" di akhir
+        playTone(80, 0.3, 'sine', 0.3, now + 0.7);
+    },
+    // Jawaban benar: chime naik (C-E-G)
+    correct() {
+        playNotes([523, 659, 784], 'sine', 0.35, 0.08, 0.2);
+    },
+    // Jawaban salah: buzz turun (E-C-A)
+    wrong() {
+        if (!sfxEnabled || !audioCtx) return;
+        const now = audioCtx.currentTime;
+        playTone(330, 0.25, 'sawtooth', 0.3, now);
+        playTone(220, 0.4, 'sawtooth', 0.3, now + 0.15);
+    },
+    // Naik tangga: glissando naik
+    ladder() {
+        playNotes([262, 294, 330, 349, 392, 440, 494, 523], 'triangle', 0.3, 0.06, 0.12);
+    },
+    // Kena ular: glissando turun
+    snake() {
+        playNotes([523, 494, 440, 392, 349, 330, 294, 262], 'triangle', 0.3, 0.06, 0.12);
+    },
+    // Menang: fanfare
+    victory() {
+        playNotes([523, 659, 784, 1047, 784, 1047], 'square', 0.35, 0.15, 0.25);
+    },
+    // Kalah: nada sedih
+    defeat() {
+        playNotes([440, 349, 294, 220], 'sine', 0.3, 0.2, 0.35);
+    },
+    // Klik tombol: pop pendek
+    click() {
+        playTone(800, 0.05, 'square', 0.15);
+    },
+    // Timer warning
+    tick() {
+        playTone(1200, 0.05, 'square', 0.15);
+    },
+    // Confetti burst
+    confetti() {
+        if (!sfxEnabled || !audioCtx) return;
+        const now = audioCtx.currentTime;
+        for (let i = 0; i < 6; i++) {
+            playTone(600 + Math.random() * 800, 0.08, 'sine', 0.15, now + i * 0.03);
+        }
+    },
+    // Step token
+    step() {
+        playTone(600 + Math.random() * 200, 0.04, 'sine', 0.1);
+    }
+};
+
+/* ═══════════════════════════════════════════════════════════
+   🎼 BACKGROUND MUSIC (BGM) - Looping Procedural
+   ═══════════════════════════════════════════════════════════ */
+
+// Konfigurasi BGM per scene
+const BGM_CONFIG = {
+    splash: {
+        tempo: 80,
+        notes: [262, 330, 392, 330, 294, 349, 440, 349], // C-E-G pentatonic
+        bass: [131, 131, 165, 165, 147, 147, 165, 165],
+        type: 'sine',
+        volume: 0.12
+    },
+    gameplay: {
+        tempo: 100,
+        notes: [330, 392, 440, 392, 349, 440, 523, 440],
+        bass: [165, 165, 196, 196, 175, 175, 196, 196],
+        type: 'triangle',
+        volume: 0.1
+    },
+    quiz: {
+        tempo: 90,
+        notes: [440, 523, 494, 440, 392, 440, 494, 440],
+        bass: [220, 220, 247, 247, 196, 196, 220, 220],
+        type: 'sine',
+        volume: 0.08
+    },
+    victory: {
+        tempo: 120,
+        notes: [523, 659, 784, 1047, 784, 1047, 1319, 1047],
+        bass: [262, 262, 330, 330, 392, 392, 523, 523],
+        type: 'square',
+        volume: 0.12
+    }
+};
+
+// Hentikan BGM yang sedang diputar
+function stopBGM() {
+    bgmPlaying = false;
+    if (bgmScheduler) {
+        clearTimeout(bgmScheduler);
+        bgmScheduler = null;
+    }
+}
+
+// Mulai BGM berdasarkan track
+function startBGM(trackName) {
+    if (!musicEnabled || !audioCtx) return;
+    if (currentBgmTrack === trackName && bgmPlaying) return;
+
+    stopBGM();
+    currentBgmTrack = trackName;
+    bgmPlaying = true;
+
+    const config = BGM_CONFIG[trackName] || BGM_CONFIG.splash;
+    const beatMs = (60 / config.tempo) * 1000;
+
+    let noteIndex = 0;
+
+    function scheduleNext() {
+        if (!bgmPlaying || !audioCtx) return;
+
+        const t = audioCtx.currentTime;
+        const note = config.notes[noteIndex % config.notes.length];
+        const bassNote = config.bass[noteIndex % config.bass.length];
+
+        // Melodi utama (tidak dipengaruhi sfxEnabled)
+        if (musicEnabled) {
+            // Melodi
+            const osc1 = audioCtx.createOscillator();
+            const gain1 = audioCtx.createGain();
+            osc1.type = config.type;
+            osc1.frequency.value = note;
+            gain1.gain.setValueAtTime(0, t);
+            gain1.gain.linearRampToValueAtTime(config.volume * masterVolume, t + 0.02);
+            gain1.gain.exponentialRampToValueAtTime(0.001, t + beatMs / 1000 * 0.9);
+            osc1.connect(gain1);
+            gain1.connect(audioCtx.destination);
+            osc1.start(t);
+            osc1.stop(t + beatMs / 1000);
+            bgmNodes.push(osc1);
+
+            // Bass drone
+            const osc2 = audioCtx.createOscillator();
+            const gain2 = audioCtx.createGain();
+            osc2.type = 'sine';
+            osc2.frequency.value = bassNote;
+            gain2.gain.setValueAtTime(0, t);
+            gain2.gain.linearRampToValueAtTime(config.volume * 1.5 * masterVolume, t + 0.02);
+            gain2.gain.exponentialRampToValueAtTime(0.001, t + beatMs / 1000);
+            osc2.connect(gain2);
+            gain2.connect(audioCtx.destination);
+            osc2.start(t);
+            osc2.stop(t + beatMs / 1000);
+            bgmNodes.push(osc2);
+        }
+
+        noteIndex++;
+        bgmScheduler = setTimeout(scheduleNext, beatMs);
+    }
+
+    scheduleNext();
+}
+
+/* ═══════════════════════════════════════════════════════════
+   📚 BANK SOAL KIMIA (50 soal)
+   ═══════════════════════════════════════════════════════════ */
+const QUESTIONS = [
+    { q: "Apa simbol kimia untuk unsur Emas?", options: ["Ag","Au","Gd","Go"], answer: 1, explain: "Au dari kata Latin 'Aurum'." },
+    { q: "Unsur dengan simbol 'Fe' adalah...", options: ["Fosfor","Fluor","Besi","Fermium"], answer: 2, explain: "Fe dari kata Latin 'Ferrum'." },
+    { q: "Berapa nomor atom Hidrogen?", options: ["0","1","2","3"], answer: 1, explain: "Hidrogen punya 1 proton." },
+    { q: "Simbol kimia Natrium adalah...", options: ["N","Na","Ni","Nt"], answer: 1, explain: "Na dari kata Latin 'Natrium'." },
+    { q: "Gas mulia paling ringan adalah...", options: ["Neon","Argon","Helium","Kripton"], answer: 2, explain: "Helium (He) paling ringan." },
+    { q: "Rumus kimia air adalah...", options: ["CO2","H2O","O2","H2O2"], answer: 1, explain: "2 atom H + 1 atom O." },
+    { q: "Unsur dengan simbol 'C' adalah...", options: ["Kalsium","Karbon","Klorin","Tembaga"], answer: 1, explain: "C = Carbon (Karbon)." },
+    { q: "Garam dapur memiliki rumus...", options: ["KCl","NaCl","CaCl2","MgCl2"], answer: 1, explain: "Natrium Klorida (NaCl)." },
+    { q: "Nomor atom Oksigen adalah...", options: ["6","7","8","9"], answer: 2, explain: "Oksigen (O) = 8 proton." },
+    { q: "Logam cair pada suhu ruang...", options: ["Besi","Merkuri","Tembaga","Aluminium"], answer: 1, explain: "Merkuri (Hg) cair pada suhu ruang." },
+    { q: "Simbol kimia Kalium adalah...", options: ["K","Ka","Kl","Po"], answer: 0, explain: "K dari 'Kalium'." },
+    { q: "Unsur paling melimpah di alam semesta...", options: ["Oksigen","Karbon","Hidrogen","Helium"], answer: 2, explain: "Hidrogen ±75% alam semesta." },
+    { q: "Rumus kimia karbon dioksida...", options: ["CO","CO2","C2O","O2C"], answer: 1, explain: "1 atom C + 2 atom O." },
+    { q: "Unsur dengan simbol 'He' adalah...", options: ["Hafnium","Helium","Holmium","Hidrogen"], answer: 1, explain: "He = Helium." },
+    { q: "Unsur paling melimpah di kerak bumi...", options: ["Silikon","Aluminium","Oksigen","Besi"], answer: 2, explain: "Oksigen ±46% kerak bumi." },
+    { q: "Simbol kimia Tembaga adalah...", options: ["Te","Cu","Co","Tb"], answer: 1, explain: "Cu dari 'Cuprum'." },
+    { q: "Gas yang dibutuhkan manusia untuk bernapas...", options: ["Nitrogen","Oksigen","Karbon dioksida","Helium"], answer: 1, explain: "Oksigen (O2) untuk respirasi." },
+    { q: "Unsur dengan simbol 'Ag' adalah...", options: ["Argon","Emas","Perak","Aluminium"], answer: 2, explain: "Ag dari 'Argentum'." },
+    { q: "Nomor atom Karbon adalah...", options: ["4","6","8","12"], answer: 1, explain: "Karbon (C) = 6 proton." },
+    { q: "Unsur golongan halogen adalah...", options: ["Na","Cl","Ca","Fe"], answer: 1, explain: "Klorin (Cl) halogen (VIIA)." },
+    { q: "Rumus kimia amonia adalah...", options: ["NH3","NO2","N2O","NH4"], answer: 0, explain: "1 N + 3 H = NH3." },
+    { q: "Unsur untuk lampu neon...", options: ["Argon","Neon","Helium","Kripton"], answer: 1, explain: "Neon (Ne) untuk lampu neon." },
+    { q: "Simbol kimia Timah adalah...", options: ["Ti","Sn","Tm","Tb"], answer: 1, explain: "Sn dari 'Stannum'." },
+    { q: "Logam alkali tanah adalah...", options: ["Natrium","Kalium","Kalsium","Litium"], answer: 2, explain: "Kalsium (Ca) golongan IIA." },
+    { q: "Rumus kimia asam sulfat...", options: ["HCl","HNO3","H2SO4","H2CO3"], answer: 2, explain: "2H + 1S + 4O." },
+    { q: "Unsur dengan nomor atom 2 adalah...", options: ["Hidrogen","Helium","Litium","Berilium"], answer: 1, explain: "Helium (He) = 2 proton." },
+    { q: "Unsur paling keras adalah...", options: ["Besi","Intan","Baja","Titanium"], answer: 1, explain: "Intan = alotrop karbon." },
+    { q: "Simbol kimia Nitrogen adalah...", options: ["Ni","N","Ng","Ne"], answer: 1, explain: "N = Nitrogen." },
+    { q: "Unsur untuk pupuk tanaman...", options: ["Emas","Nitrogen","Perak","Helium"], answer: 1, explain: "Nitrogen (N) untuk pupuk." },
+    { q: "Rumus kimia glukosa...", options: ["C6H12O6","C12H22O11","CH4","C2H5OH"], answer: 0, explain: "Glukosa = C6H12O6." },
+    { q: "Unsur dengan simbol 'Pb' adalah...", options: ["Timbal","Platina","Paladium","Pospor"], answer: 0, explain: "Pb dari 'Plumbum' (timbal)." },
+    { q: "Rumus kimia metana adalah...", options: ["CH4","C2H6","C3H8","C4H10"], answer: 0, explain: "Metana = 1C + 4H." },
+    { q: "Unsur yang digunakan untuk membuat pensil...", options: ["Timbal","Grafit","Besi","Tembaga"], answer: 1, explain: "Grafit = bentuk karbon." },
+    { q: "Simbol kimia untuk Besi adalah...", options: ["Be","Ba","Fe","Fr"], answer: 2, explain: "Fe dari 'Ferrum'." },
+    { q: "Unsur yang paling ringan...", options: ["Helium","Hidrogen","Litium","Oksigen"], answer: 1, explain: "Hidrogen (H) paling ringan." },
+    { q: "Rumus kimia asam klorida...", options: ["HCl","H2Cl","ClH2","HCl2"], answer: 0, explain: "HCl = 1H + 1Cl." },
+    { q: "Unsur golongan gas mulia...", options: ["Oksigen","Nitrogen","Argon","Hidrogen"], answer: 2, explain: "Argon (Ar) gas mulia." },
+    { q: "Nomor atom Natrium adalah...", options: ["10","11","12","13"], answer: 1, explain: "Natrium (Na) = 11 proton." },
+    { q: "Simbol kimia untuk Kalsium...", options: ["C","Ca","Cl","K"], answer: 1, explain: "Ca = Kalsium." },
+    { q: "Unsur yang digunakan dalam pupuk urea...", options: ["N","P","K","Ca"], answer: 0, explain: "Nitrogen (N) dalam urea." },
+    { q: "Rumus kimia alkohol (etanol)...", options: ["CH4","C2H5OH","C6H12O6","CH3OH"], answer: 1, explain: "Etanol = C2H5OH." },
+    { q: "Unsur logam yang tidak berkarat...", options: ["Besi","Baja","Emas","Tembaga"], answer: 2, explain: "Emas tidak berkarat." },
+    { q: "Simbol kimia untuk Perak...", options: ["Pe","Ag","Au","Ar"], answer: 1, explain: "Ag dari 'Argentum'." },
+    { q: "Unsur yang dibutuhkan tulang...", options: ["Besi","Kalsium","Seng","Tembaga"], answer: 1, explain: "Kalsium (Ca) untuk tulang." },
+    { q: "Unsur dengan simbol 'Zn' adalah...", options: ["Zirkonium","Seng","Zinkon","Zink"], answer: 1, explain: "Zn = Seng (Zinc)." },
+    { q: "Unsur yang digunakan baterai...", options: ["Lithium","Besi","Emas","Helium"], answer: 0, explain: "Lithium untuk baterai." },
+    { q: "Gas yang menyebabkan efek rumah kaca...", options: ["O2","N2","CO2","H2"], answer: 2, explain: "CO2 = gas rumah kaca." },
+    { q: "Simbol kimia untuk Aluminium...", options: ["Al","Am","An","A"], answer: 0, explain: "Al = Aluminium." },
+    { q: "Unsur yang digunakan untuk pengawet makanan...", options: ["Natrium","Kalsium","Kalium","Besi"], answer: 0, explain: "Natrium (Na) untuk pengawet." },
+    { q: "Unsur yang paling banyak di atmosfer...", options: ["Oksigen","Nitrogen","Karbon","Argon"], answer: 1, explain: "Nitrogen ±78% atmosfer." }
+];
+
+/* ═══════════════════════════════════════════════════════════
+   🎲 PAPAN - TANGGA & ULAR
+   ═══════════════════════════════════════════════════════════ */
+const LADDERS = { 2: 23, 8: 34, 20: 77, 32: 68, 41: 79, 74: 88, 82: 100, 85: 95 };
+const SNAKES  = { 29: 9, 38: 15, 47: 5, 53: 33, 62: 19, 86: 54, 92: 70, 98: 78, 99: 80 };
+
+/* ═══════════════════════════════════════════════════════════
+   🏆 SISTEM BADGE
+   ═══════════════════════════════════════════════════════════ */
+const BADGES = [
+    { id: 'beginner', name: 'Kimiawan Pemula', emoji: '🥉', cond: s => s.gamesPlayed >= 1 },
+    { id: 'expert', name: 'Ahli Unsur', emoji: '🥈', cond: s => s.totalCorrectAnswers >= 20 },
+    { id: 'master', name: 'Master Tabel Periodik', emoji: '🥇', cond: s => s.gamesWon >= 3 },
+    { id: 'collector', name: 'Kolektor Poin', emoji: '💎', cond: s => s.highScore >= 500 },
+    { id: 'legend', name: 'Legenda Kimia', emoji: '👑', cond: s => s.perfectWin === true },
+    { id: 'combo', name: 'Combo Master', emoji: '⚡', cond: s => s.maxCombo >= 5 }
+];
+
+/* ═══════════════════════════════════════════════════════════
+   💾 LOCALSTORAGE
+   ═══════════════════════════════════════════════════════════ */
+let savedData = {
+    gamesPlayed: 0,
+    gamesWon: 0,
+    highScore: 0,
+    totalCorrectAnswers: 0,
+    totalWrongAnswers: 0,
+    badges: [],
+    perfectWin: false,
+    maxCombo: 0,
+    audioSettings: {
+        musicOn: true,
+        sfxOn: true,
+        masterVolume: 0.7
+    },
+    historyMatches: []
+};
+
+function loadData() {
+    try {
+        const raw = localStorage.getItem('ularTanggaKimiaMultiplayer');
+        if (raw) {
+            const parsed = JSON.parse(raw);
+            savedData = { ...savedData, ...parsed };
+            if (parsed.audioSettings) {
+                savedData.audioSettings = { ...savedData.audioSettings, ...parsed.audioSettings };
+            }
+        }
+    } catch(e) { console.warn('Load gagal:', e); }
+}
+
+function saveData() {
+    try {
+        localStorage.setItem('ularTanggaKimiaMultiplayer', JSON.stringify(savedData));
+    } catch(e) { console.warn('Save gagal:', e); }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   🎮 STATE GAME
+   ═══════════════════════════════════════════════════════════ */
+const COLORS = ['#ff3b5c', '#00aaff', '#00ff80'];
+const EMOJIS = ['🔴', '🔵', '🟢'];
+const DEFAULT_NAMES = ['Pemain 1', 'Pemain 2', 'Pemain 3'];
+
+let gameState = {
+    playerCount: 2,
+    players: [],
+    currentPlayerIndex: 0,
+    phase: 'splash',
+    winner: null,
+    rankings: [],
+    questionsPool: [],
+    currentQuestion: null,
+    answeredThisTurn: false,
+    timerInterval: null,
+    timeLeft: 30
+};
+
+/* ═══════════════════════════════════════════════════════════
+   🎯 SETUP PEMAIN DI SPLASH
+   ═══════════════════════════════════════════════════════════ */
+function renderPlayerSetup() {
+    const container = document.getElementById('player-setup');
+    container.innerHTML = '';
+    for (let i = 0; i < gameState.playerCount; i++) {
+        const row = document.createElement('div');
+        row.className = 'setup-row';
+
+        const dot = document.createElement('div');
+        dot.className = 'setup-dot';
+        dot.style.background = COLORS[i];
+        dot.style.color = COLORS[i];
+        row.appendChild(dot);
+
+        const input = document.createElement('input');
+        input.className = 'setup-input';
+        input.type = 'text';
+        input.placeholder = DEFAULT_NAMES[i];
+        input.maxLength = 10;
+        input.value = DEFAULT_NAMES[i];
+        input.id = `pname-${i}`;
+        row.appendChild(input);
+
+        container.appendChild(row);
+    }
+}
+
+function setupPlayerCountButtons() {
+    document.querySelectorAll('.count-btn').forEach(btn => {
+        btn.addEventListener('click', () => {
+            SFX.click();
+            document.querySelectorAll('.count-btn').forEach(b => b.classList.remove('selected'));
+            btn.classList.add('selected');
+            gameState.playerCount = parseInt(btn.dataset.count);
+            renderPlayerSetup();
+        });
+    });
+}
+
+/* ═══════════════════════════════════════════════════════════
+   🎮 INISIALISASI GAME
+   ═══════════════════════════════════════════════════════════ */
+function startGame() {
+    // Ambil nama pemain
+    const players = [];
+    for (let i = 0; i < gameState.playerCount; i++) {
+        const input = document.getElementById(`pname-${i}`);
+        const name = (input.value.trim() || DEFAULT_NAMES[i]).substring(0, 10);
+        players.push({
+            id: i,
+            name: name,
+            color: COLORS[i],
+            emoji: EMOJIS[i],
+            position: 1,
+            lives: 3,
+            score: 0,
+            combo: 0,
+            maxCombo: 0,
+            correct: 0,
+            wrong: 0,
+            isActive: i === 0,
+            finished: false
+        });
+    }
+
+    gameState.players = players;
+    gameState.currentPlayerIndex = 0;
+    gameState.phase = 'playing';
+    gameState.winner = null;
+    gameState.rankings = [];
+    gameState.questionsPool = shuffleArray([...Array(QUESTIONS.length).keys()]);
+
+    savedData.gamesPlayed++;
+
+    // UI transition
+    document.getElementById('splash').classList.add('hidden');
+    document.getElementById('result').classList.remove('active');
+
+    // Start music
+    startBGM('gameplay');
+
+    buildBoard();
+    renderScoreboard();
+    updateTurnIndicator();
+    setTimeout(() => positionAllTokens(), 100);
+
+    document.getElementById('roll-btn').disabled = false;
+}
+
+function shuffleArray(arr) {
+    for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+    }
+    return arr;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   🎨 RENDER PAPAN
+   ═══════════════════════════════════════════════════════════ */
+function buildBoard() {
+    const board = document.getElementById('board');
+    board.innerHTML = '';
+
+    // Buat array 1-100 dengan pola boustrophedon
+    for (let visualRow = 0; visualRow < 10; visualRow++) {
+        // visualRow 0 = paling atas (kotak 91-100)
+        const actualRow = 9 - visualRow;
+        const nums = [];
+        for (let col = 0; col < 10; col++) {
+            let num;
+            if (visualRow % 2 === 0) {
+                num = actualRow * 10 + (10 - col);
+            } else {
+                num = actualRow * 10 + (col + 1);
+            }
+            nums.push(num);
+        }
+
+        nums.forEach(num => {
+            const cell = document.createElement('div');
+            cell.className = `cell r${visualRow % 5}`;
+            cell.dataset.num = num;
+            cell.id = `cell-${num}`;
+
+            if (num === 1) cell.classList.add('start');
+            if (num === 100) cell.classList.add('finish');
+
+            const numLabel = document.createElement('span');
+            numLabel.textContent = num;
+            cell.appendChild(numLabel);
+
+            if (LADDERS[num]) {
+                const e = document.createElement('span');
+                e.className = 'emoji ladder-emoji';
+                e.textContent = '🪜';
+                cell.appendChild(e);
+            }
+            if (SNAKES[num]) {
+                const e = document.createElement('span');
+                e.className = 'emoji snake-emoji';
+                e.textContent = '🐍';
+                cell.appendChild(e);
+            }
+
+            board.appendChild(cell);
+        });
+    }
+
+    // Buat token pemain
+    gameState.players.forEach((p, i) => {
+        const token = document.createElement('div');
+        token.className = 'token';
+        token.id = `token-${p.id}`;
+        token.style.background = p.color;
+        token.style.color = p.color;
+        token.textContent = p.name.charAt(0).toUpperCase();
+        board.appendChild(token);
+    });
+}
+
+// Cari posisi center cell dalam pixel relatif ke board
+function getCellCenter(num) {
+    const cell = document.getElementById(`cell-${num}`);
+    if (!cell) return null;
+    const board = document.getElementById('board');
+    const boardRect = board.getBoundingClientRect();
+    const cellRect = cell.getBoundingClientRect();
+    return {
+        x: cellRect.left - boardRect.left + cellRect.width / 2,
+        y: cellRect.top - boardRect.top + cellRect.height / 2,
+        size: cellRect.width
+    };
+}
+
+// Posisikan semua token sesuai posisi mereka
+function positionAllTokens() {
+    const board = document.getElementById('board');
+    const boardRect = board.getBoundingClientRect();
+
+    gameState.players.forEach(p => {
+        const token = document.getElementById(`token-${p.id}`);
+        if (!token) return;
+        const pos = getCellCenter(p.position);
+        if (!pos) return;
+
+        const size = pos.size * 0.7;
+        token.style.width = size + 'px';
+        token.style.height = size + 'px';
+        token.style.fontSize = (size * 0.5) + 'px';
+
+        // Offset jika ada beberapa token di kotak yang sama
+        const samePos = gameState.players.filter(x => x.position === p.position);
+        let offsetX = 0, offsetY = 0;
+        if (samePos.length > 1) {
+            const idx = samePos.indexOf(p);
+            const angle = (idx / samePos.length) * Math.PI * 2;
+            offsetX = Math.cos(angle) * pos.size * 0.25;
+            offsetY = Math.sin(angle) * pos.size * 0.25;
+        }
+
+        token.style.left = (pos.x - size / 2 + offsetX) + 'px';
+        token.style.top = (pos.y - size / 2 + offsetY) + 'px';
+    });
+}
+
+// Update token pemain tertentu saja
+function updateTokenPosition(playerId) {
+    const p = gameState.players.find(x => x.id === playerId);
+    if (!p) return;
+    const token = document.getElementById(`token-${p.id}`);
+    if (!token) return;
+
+    const pos = getCellCenter(p.position);
+    if (!pos) return;
+
+    const size = pos.size * 0.7;
+    const samePos = gameState.players.filter(x => x.position === p.position);
+    let offsetX = 0, offsetY = 0;
+    if (samePos.length > 1) {
+        const idx = samePos.indexOf(p);
+        const angle = (idx / samePos.length) * Math.PI * 2;
+        offsetX = Math.cos(angle) * pos.size * 0.25;
+        offsetY = Math.sin(angle) * pos.size * 0.25;
+    }
+
+    token.style.width = size + 'px';
+    token.style.height = size + 'px';
+    token.style.fontSize = (size * 0.5) + 'px';
+    token.style.left = (pos.x - size / 2 + offsetX) + 'px';
+    token.style.top = (pos.y - size / 2 + offsetY) + 'px';
+
+    // Efek jump
+    token.classList.add('jumping');
+    setTimeout(() => token.classList.remove('jumping'), 400);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   📊 SCOREBOARD
+   ═══════════════════════════════════════════════════════════ */
+function renderScoreboard() {
+    const board = document.getElementById('scoreboard');
+    board.innerHTML = '';
+    gameState.players.forEach((p, i) => {
+        const card = document.createElement('div');
+        card.className = 'player-card';
+        card.style.setProperty('--pcolor', p.color);
+        card.id = `pc-${p.id}`;
+        if (i === gameState.currentPlayerIndex) card.classList.add('active');
+        if (p.lives <= 0) card.classList.add('dead');
+
+        const livesStr = '❤️'.repeat(Math.max(0, p.lives)) || '💀';
+
+        card.innerHTML = `
+            <div class="pc-top">
+                <div class="pc-dot"></div>
+                <div class="pc-name">${p.name}</div>
+            </div>
+            <div class="pc-stats">
+                <span>📍${p.position}</span>
+                <span class="lives">${livesStr}</span>
+                <span>⭐${p.score}</span>
+            </div>
+            ${p.combo >= 3 ? `<div class="pc-combo">🔥</div>` : ''}
+        `;
+        board.appendChild(card);
+    });
+}
+
+function updateScoreboardHighlight() {
+    gameState.players.forEach((p, i) => {
+        const card = document.getElementById(`pc-${p.id}`);
+        if (!card) return;
+        card.classList.toggle('active', i === gameState.currentPlayerIndex);
+        card.classList.toggle('dead', p.lives <= 0);
+    });
+}
+
+/* ═══════════════════════════════════════════════════════════
+   🎯 INDIKATOR GILIRAN
+   ═══════════════════════════════════════════════════════════ */
+function updateTurnIndicator() {
+    const el = document.getElementById('turn-indicator');
+    const p = gameState.players[gameState.currentPlayerIndex];
+    if (!p) return;
+    el.innerHTML = `<span class="dot" style="background:${p.color}; box-shadow:0 0 8px ${p.color}"></span>
+                    🎯 Giliran: <b>${p.name}</b> ${p.emoji}`;
+    el.style.borderColor = p.color;
+    el.style.background = `rgba(${hexToRgb(p.color)}, 0.15)`;
+}
+
+function hexToRgb(hex) {
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return result ? `${parseInt(result[1],16)},${parseInt(result[2],16)},${parseInt(result[3],16)}` : '0,255,128';
+}
+
+/* ═══════════════════════════════════════════════════════════
+   🎲 LEMPAR DADU
+   ═══════════════════════════════════════════════════════════ */
+function rollDice() {
+    if (gameState.phase !== 'playing') return;
+    const player = gameState.players[gameState.currentPlayerIndex];
+    if (!player || player.lives <= 0) {
+        nextTurn();
+        return;
+    }
+
+    const btn = document.getElementById('roll-btn');
+    btn.disabled = true;
+
+    SFX.dice();
+
+    const diceEl = document.getElementById('dice-display');
+    diceEl.classList.add('rolling');
+
+    let count = 0;
+    const rollInterval = setInterval(() => {
+        diceEl.textContent = Math.floor(Math.random() * 6) + 1;
+        count++;
+        if (count > 10) {
+            clearInterval(rollInterval);
+            diceEl.classList.remove('rolling');
+            const final = Math.floor(Math.random() * 6) + 1;
+            diceEl.textContent = final;
+            player.lastDice = final;
+
+            showToast(`🎲 ${player.name} dapat ${final}!`);
+
+            setTimeout(() => {
+                startBGM('quiz');
+                showQuiz();
+            }, 600);
+        }
+    }, 60);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   ❓ KUIS KIMIA
+   ═══════════════════════════════════════════════════════════ */
+function showQuiz() {
+    // Reset pool jika habis
+    if (gameState.questionsPool.length === 0) {
+        gameState.questionsPool = shuffleArray([...Array(QUESTIONS.length).keys()]);
+    }
+    const qIdx = gameState.questionsPool.pop();
+    gameState.currentQuestion = QUESTIONS[qIdx];
+    gameState.answeredThisTurn = false;
+
+    const player = gameState.players[gameState.currentPlayerIndex];
+    const modal = document.getElementById('quiz-modal');
+    const whoEl = document.getElementById('quiz-who');
+    const questionEl = document.getElementById('question-text');
+    const optionsEl = document.getElementById('options');
+    const fbEl = document.getElementById('feedback-box');
+
+    whoEl.textContent = `${player.emoji} ${player.name}`;
+    whoEl.style.background = player.color;
+    whoEl.style.color = '#fff';
+
+    questionEl.textContent = gameState.currentQuestion.q;
+    optionsEl.innerHTML = '';
+    fbEl.className = '';
+    fbEl.style.display = 'none';
+
+    const letters = ['A','B','C','D'];
+    gameState.currentQuestion.options.forEach((opt, i) => {
+        const btn = document.createElement('button');
+        btn.className = 'option';
+        btn.innerHTML = `<span class="letter">${letters[i]}</span><span>${opt}</span>`;
+        btn.onclick = (e) => {
+            addRipple(e, btn);
+            answerQuiz(i, btn);
+        };
+        optionsEl.appendChild(btn);
+    });
+
+    modal.classList.add('active');
+
+    // Timer
+    gameState.timeLeft = 30;
+    updateTimerCircle();
+    clearInterval(gameState.timerInterval);
+    gameState.timerInterval = setInterval(() => {
+        gameState.timeLeft--;
+        updateTimerCircle();
+        if (gameState.timeLeft <= 10 && gameState.timeLeft > 0) {
+            SFX.tick();
+        }
+        if (gameState.timeLeft <= 0) {
+            clearInterval(gameState.timerInterval);
+            if (!gameState.answeredThisTurn) {
+                answerQuiz(-1, null);
+            }
+        }
+    }, 1000);
+}
+
+function updateTimerCircle() {
+    const progress = document.getElementById('timer-progress');
+    const text = document.getElementById('timer-text');
+    const total = 30;
+    const dashArray = 100.5;
+    const offset = dashArray * (1 - gameState.timeLeft / total);
+    progress.style.strokeDashoffset = offset;
+    progress.style.stroke = gameState.timeLeft <= 10 ? '#ff3b5c' : '#00ff80';
+    text.textContent = gameState.timeLeft;
+    text.style.color = gameState.timeLeft <= 10 ? '#ff3b5c' : '#00ff80';
+}
+
+function answerQuiz(idx, btn) {
+    if (gameState.answeredThisTurn) return;
+    gameState.answeredThisTurn = true;
+    clearInterval(gameState.timerInterval);
+
+    const player = gameState.players[gameState.currentPlayerIndex];
+    const q = gameState.currentQuestion;
+    const isCorrect = idx === q.answer;
+    const allOptions = document.querySelectorAll('.option');
+    allOptions.forEach(o => o.classList.add('disabled'));
+    const fbEl = document.getElementById('feedback-box');
+
+    if (isCorrect) {
+        if (btn) btn.classList.add('correct');
+        fbEl.className = 'correct';
+        fbEl.textContent = `✅ Benar! ${q.explain}`;
+        SFX.correct();
+        player.correct++;
+        player.score += 10;
+        player.combo++;
+        if (player.combo > player.maxCombo) player.maxCombo = player.combo;
+        savedData.totalCorrectAnswers++;
+        if (player.maxCombo > savedData.maxCombo) savedData.maxCombo = player.maxCombo;
+        haptic(50);
+        showToast('✅ Benar! +10 poin' + (player.combo >= 3 ? ` 🔥 Combo x${player.combo}` : ''));
+        if (player.combo >= 5) checkBadge('combo');
+
+        setTimeout(() => {
+            closeQuiz();
+            movePlayer(player.lastDice);
+        }, 1500);
+    } else {
+        if (btn) btn.classList.add('wrong');
+        allOptions[q.answer].classList.add('correct');
+        fbEl.className = 'wrong';
+        fbEl.textContent = `❌ Salah! Jawaban: ${q.options[q.answer]}. ${q.explain}`;
+        SFX.wrong();
+        player.wrong++;
+        player.lives--;
+        player.combo = 0;
+        savedData.totalWrongAnswers++;
+        document.getElementById('app').classList.add('shake');
+        setTimeout(() => document.getElementById('app').classList.remove('shake'), 500);
+        haptic([100, 50, 100]);
+        showToast(`❌ Salah! -1 nyawa (${player.lives} sisa)`);
+
+        renderScoreboard();
+        saveData();
+
+        setTimeout(() => {
+            closeQuiz();
+            if (player.lives <= 0) {
+                player.finished = true;
+                showToast(`💀 ${player.name} kehabisan nyawa!`);
+                setTimeout(() => nextTurn(), 800);
+            } else {
+                nextTurn();
+            }
+        }, 2000);
+    }
+}
+
+function closeQuiz() {
+    document.getElementById('quiz-modal').classList.remove('active');
+}
+
+/* ═══════════════════════════════════════════════════════════
+   🚶 GERAKAN PEMAIN
+   ═══════════════════════════════════════════════════════════ */
+function movePlayer(steps) {
+    const player = gameState.players[gameState.currentPlayerIndex];
+    let remaining = steps;
+
+    document.getElementById('roll-btn').disabled = true;
+
+    const moveInterval = setInterval(() => {
+        if (remaining <= 0 || player.position >= 100) {
+            clearInterval(moveInterval);
+            checkSnakeOrLadder(player);
+            return;
+        }
+        player.position = Math.min(100, player.position + 1);
+        updateTokenPosition(player.id);
+        renderScoreboard();
+        SFX.step();
+        remaining--;
+    }, 200);
+}
+
+function checkSnakeOrLadder(player) {
+    // Cek tangga
+    if (LADDERS[player.position]) {
+        const target = LADDERS[player.position];
+        SFX.ladder();
+        showToast(`🪜 ${player.name} naik tangga ke ${target}! +20 poin`);
+        player.score += 20;
+        showSpeechBubble(player, '🎉');
+        confetti();
+        haptic(80);
+
+        setTimeout(() => {
+            player.position = target;
+            updateTokenPosition(player.id);
+            renderScoreboard();
+            setTimeout(() => afterMove(player), 500);
+        }, 800);
+        return;
+    }
+
+    // Cek ular
+    if (SNAKES[player.position]) {
+        const target = SNAKES[player.position];
+        SFX.snake();
+        showToast(`🐍 ${player.name} kena ular! Turun ke ${target}`);
+        showSpeechBubble(player, '😱');
+        document.getElementById('app').classList.add('shake');
+        setTimeout(() => document.getElementById('app').classList.remove('shake'), 500);
+        haptic([100, 50, 100]);
+
+        setTimeout(() => {
+            player.position = target;
+            updateTokenPosition(player.id);
+            renderScoreboard();
+            setTimeout(() => afterMove(player), 500);
+        }, 800);
+        return;
+    }
+
+    setTimeout(() => afterMove(player), 300);
+}
+
+function afterMove(player) {
+    renderScoreboard();
+    saveData();
+
+    // Cek menang
+    if (player.position >= 100) {
+        player.position = 100;
+        updateTokenPosition(player.id);
+        player.finished = true;
+        setTimeout(() => endGame(player), 500);
+        return;
+    }
+
+    // Update combo & high score
+    if (player.score > savedData.highScore) savedData.highScore = player.score;
+
+    // Lanjut giliran
+    setTimeout(() => nextTurn(), 300);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   🔄 GILIRAN BERIKUTNYA
+   ═══════════════════════════════════════════════════════════ */
+function nextTurn() {
+    // Cari pemain berikutnya yang masih hidup
+    let attempts = 0;
+    do {
+        gameState.currentPlayerIndex = (gameState.currentPlayerIndex + 1) % gameState.players.length;
+        attempts++;
+    } while (gameState.players[gameState.currentPlayerIndex].lives <= 0 && attempts < gameState.players.length);
+
+    // Cek apakah semua pemain mati
+    const allDead = gameState.players.every(p => p.lives <= 0);
+    if (allDead) {
+        endGame(null);
+        return;
+    }
+
+    updateScoreboardHighlight();
+    updateTurnIndicator();
+    startBGM('gameplay');
+    document.getElementById('roll-btn').disabled = false;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   🏁 AKHIR GAME
+   ═══════════════════════════════════════════════════════════ */
+function endGame(winner) {
+    gameState.phase = 'ended';
+    document.getElementById('roll-btn').disabled = true;
+    clearInterval(gameState.timerInterval);
+
+    // Hitung ranking berdasarkan posisi & score
+    const ranked = [...gameState.players].sort((a, b) => {
+        if (a.position !== b.position) return b.position - a.position;
+        return b.score - a.score;
+    });
+
+    gameState.rankings = ranked;
+    gameState.winner = winner || ranked[0];
+
+    // Update saved data
+    if (winner) {
+        savedData.gamesWon++;
+        if (winner.lives === 3) savedData.perfectWin = true;
+        if (winner.score > savedData.highScore) savedData.highScore = winner.score;
+
+        // Simpan riwayat
+        savedData.historyMatches.unshift({
+            date: new Date().toISOString(),
+            winner: winner.name,
+            scores: gameState.players.reduce((acc, p) => {
+                acc[p.name] = p.score;
+                return acc;
+            }, {})
+        });
+        savedData.historyMatches = savedData.historyMatches.slice(0, 5);
+    }
+
+    // Cek badge baru
+    const newBadges = [];
+    BADGES.forEach(b => {
+        if (!savedData.badges.includes(b.id) && b.cond(savedData)) {
+            savedData.badges.push(b.id);
+            newBadges.push(b);
+        }
+    });
+
+    saveData();
+
+    // Sound & music
+    if (winner) {
+        SFX.victory();
+        startBGM('victory');
+        confetti();
+        confetti();
+    } else {
+        SFX.defeat();
+        stopBGM();
+    }
+
+    // Render result
+    renderResult(winner, newBadges);
+
+    document.getElementById('result').classList.add('active');
+}
+
+function renderResult(winner, newBadges) {
+    const emoji = document.getElementById('result-emoji');
+    const title = document.getElementById('result-title');
+    const sub = document.getElementById('result-sub');
+    const badgeEl = document.getElementById('new-badge');
+    const podium = document.getElementById('podium');
+
+    if (winner) {
+        emoji.textContent = '🏆';
+        title.textContent = `SELAMAT ${winner.name.toUpperCase()}!`;
+        sub.textContent = 'Berhasil mencapai kotak 100!';
+    } else {
+        emoji.textContent = '💀';
+        title.textContent = 'GAME OVER';
+        sub.textContent = 'Semua pemain kehabisan nyawa!';
+    }
+
+    // Podium
+    podium.innerHTML = '';
+    const medals = ['gold','silver','bronze'];
+    const medalEmojis = ['🥇','🥈','🥉'];
+
+    // Urutan tampil: 2, 1, 3 (podium visual)
+    const podiumOrder = [1, 0, 2];
+    podiumOrder.forEach(idx => {
+        if (!gameState.rankings[idx]) return;
+        const p = gameState.rankings[idx];
+        const item = document.createElement('div');
+        item.className = `podium-item ${medals[idx]}`;
+        item.innerHTML = `
+            <div class="podium-name">${medalEmojis[idx]} ${p.name}</div>
+            <div class="podium-bar" style="color:#001a0d">${idx + 1}</div>
+            <div class="podium-score">⭐${p.score}</div>
+        `;
+        podium.appendChild(item);
+    });
+
+    // Badge baru
+    if (newBadges.length > 0) {
+        const b = newBadges[newBadges.length - 1];
+        badgeEl.textContent = `${b.emoji} Badge Baru: ${b.name}`;
+        badgeEl.classList.add('show');
+    } else {
+        badgeEl.classList.remove('show');
+    }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   🎨 EFEK VISUAL
+   ═══════════════════════════════════════════════════════════ */
+function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(t._timeout);
+    t._timeout = setTimeout(() => t.classList.remove('show'), 1800);
+}
+
+function confetti() {
+    SFX.confetti();
+    const emojis = ['🎉','✨','🌟','💚','🎊','⭐','🧪','⚗️'];
+    for (let i = 0; i < 20; i++) {
+        setTimeout(() => {
+            const el = document.createElement('div');
+            el.className = 'confetti';
+            el.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+            el.style.left = Math.random() * 100 + '%';
+            el.style.fontSize = (16 + Math.random() * 20) + 'px';
+            document.body.appendChild(el);
+            setTimeout(() => el.remove(), 2000);
+        }, i * 60);
+    }
+}
+
+function showSpeechBubble(player, emoji) {
+    const token = document.getElementById(`token-${player.id}`);
+    if (!token) return;
+    const board = document.getElementById('board');
+    const bubble = document.createElement('div');
+    bubble.className = 'speech-bubble';
+    bubble.textContent = emoji;
+    bubble.style.left = token.style.left;
+    bubble.style.top = `calc(${token.style.top} - 25px)`;
+    board.appendChild(bubble);
+    setTimeout(() => bubble.remove(), 1500);
+}
+
+function haptic(pattern) {
+    if (navigator.vibrate) {
+        try { navigator.vibrate(pattern); } catch(e) {}
+    }
+}
+
+function addRipple(e, el) {
+    const rect = el.getBoundingClientRect();
+    const ripple = document.createElement('span');
+    ripple.className = 'ripple';
+    const size = Math.max(rect.width, rect.height);
+    ripple.style.width = ripple.style.height = size + 'px';
+    ripple.style.left = (e.clientX - rect.left - size / 2) + 'px';
+    ripple.style.top = (e.clientY - rect.top - size / 2) + 'px';
+    el.appendChild(ripple);
+    setTimeout(() => ripple.remove(), 600);
+}
+
+function checkBadge(id) {
+    if (!savedData.badges.includes(id)) {
+        const b = BADGES.find(x => x.id === id);
+        if (b) {
+            savedData.badges.push(id);
+            saveData();
+            showToast(`${b.emoji} Badge: ${b.name}!`);
+        }
+    }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   🎵 AUDIO CONTROLS
+   ═══════════════════════════════════════════════════════════ */
+function updateAudioButtons() {
+    const musicBtn = document.getElementById('music-btn');
+    const sfxBtn = document.getElementById('sfx-btn');
+    musicBtn.classList.toggle('muted', !musicEnabled);
+    sfxBtn.classList.toggle('muted', !sfxEnabled);
+    musicBtn.textContent = musicEnabled ? '🎵' : '🚫';
+    sfxBtn.textContent = sfxEnabled ? '🔊' : '🔇';
+}
+
+function setupAudioControls() {
+    // Music toggle
+    document.getElementById('music-btn').addEventListener('click', () => {
+        initAudio();
+        musicEnabled = !musicEnabled;
+        savedData.audioSettings.musicOn = musicEnabled;
+        saveData();
+        updateAudioButtons();
+        SFX.click();
+        if (musicEnabled && gameState.phase !== 'ended') {
+            startBGM(gameState.phase === 'splash' ? 'splash' : 'gameplay');
+        } else {
+            stopBGM();
+        }
+    });
+
+    // SFX toggle
+    document.getElementById('sfx-btn').addEventListener('click', () => {
+        initAudio();
+        sfxEnabled = !sfxEnabled;
+        savedData.audioSettings.sfxOn = sfxEnabled;
+        saveData();
+        updateAudioButtons();
+        if (sfxEnabled) SFX.click();
+    });
+
+    // Settings panel toggle
+    document.getElementById('settings-btn').addEventListener('click', () => {
+        SFX.click();
+        document.getElementById('settings-panel').classList.toggle('show');
+    });
+
+    // Toggle music in settings
+    document.getElementById('toggle-music').addEventListener('click', () => {
+        document.getElementById('music-btn').click();
+        document.getElementById('toggle-music').classList.toggle('on', musicEnabled);
+    });
+
+    // Toggle sfx in settings
+    document.getElementById('toggle-sfx').addEventListener('click', () => {
+        document.getElementById('sfx-btn').click();
+        document.getElementById('toggle-sfx').classList.toggle('on', sfxEnabled);
+    });
+
+    // Volume slider
+    document.getElementById('volume-slider').addEventListener('input', (e) => {
+        masterVolume = parseInt(e.target.value) / 100;
+        savedData.audioSettings.masterVolume = masterVolume;
+        saveData();
+    });
+}
+
+/* ═══════════════════════════════════════════════════════════
+   🚀 INIT
+   ═══════════════════════════════════════════════════════════ */
+function init() {
+    loadData();
+
+    // Terapkan preferensi audio
+    musicEnabled = savedData.audioSettings.musicOn;
+    sfxEnabled = savedData.audioSettings.sfxOn;
+    masterVolume = savedData.audioSettings.masterVolume;
+    updateAudioButtons();
+    document.getElementById('volume-slider').value = masterVolume * 100;
+    document.getElementById('toggle-music').classList.toggle('on', musicEnabled);
+    document.getElementById('toggle-sfx').classList.toggle('on', sfxEnabled);
+
+    // Setup
+    setupPlayerCountButtons();
+    setupAudioControls();
+    renderPlayerSetup();
+
+    // Start button
+    document.getElementById('start-btn').addEventListener('click', (e) => {
+        initAudio();
+        addRipple(e, e.target);
+        SFX.click();
+        setTimeout(startGame, 200);
+    });
+
+    // Roll button
+    document.getElementById('roll-btn').addEventListener('click', (e) => {
+        initAudio();
+        addRipple(e, e.target);
+        SFX.click();
+        rollDice();
+    });
+
+    // Play again
+    document.getElementById('play-again-btn').addEventListener('click', (e) => {
+        SFX.click();
+        addRipple(e, e.target);
+        document.getElementById('result').classList.remove('active');
+        setTimeout(startGame, 300);
+    });
+
+    // Change players
+    document.getElementById('change-players-btn').addEventListener('click', (e) => {
+        SFX.click();
+        addRipple(e, e.target);
+        document.getElementById('result').classList.remove('active');
+        document.getElementById('splash').classList.remove('hidden');
+        gameState.phase = 'splash';
+        startBGM('splash');
+    });
+
+    // Tutup settings saat klik di luar
+    document.addEventListener('click', (e) => {
+        const panel = document.getElementById('settings-panel');
+        const btn = document.getElementById('settings-btn');
+        if (!panel.contains(e.target) && !btn.contains(e.target)) {
+            panel.classList.remove('show');
+        }
+    });
+
+    // Mulai BGM splash setelah interaksi pertama
+    document.body.addEventListener('click', function startAudioOnce() {
+        initAudio();
+        if (gameState.phase === 'splash') {
+            startBGM('splash');
+        }
+        document.body.removeEventListener('click', startAudioOnce);
+    }, { once: true });
+
+    // Handle resize
+    window.addEventListener('resize', () => {
+        if (gameState.phase === 'playing') {
+            positionAllTokens();
+        }
+    });
+}
+
+window.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>
